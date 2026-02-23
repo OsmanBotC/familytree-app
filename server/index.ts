@@ -164,6 +164,25 @@ app.post('/api/relationships', async (req, res) => {
   if (!parsed.success) return res.status(400).json(parsed.error.flatten())
 
   const relationship = await prisma.relationship.create({ data: parsed.data })
+
+  // Lebanon-focused default: when linking parent/child, inherit father's/family last name if child last name is empty.
+  if (parsed.data.type === 'PARENT' || parsed.data.type === 'CHILD') {
+    const parentId = parsed.data.type === 'PARENT' ? parsed.data.fromPersonId : parsed.data.toPersonId
+    const childId = parsed.data.type === 'PARENT' ? parsed.data.toPersonId : parsed.data.fromPersonId
+
+    const [parent, child] = await Promise.all([
+      prisma.person.findUnique({ where: { id: parentId } }),
+      prisma.person.findUnique({ where: { id: childId } }),
+    ])
+
+    if (parent?.lastName && !child?.lastName) {
+      await prisma.person.update({
+        where: { id: childId },
+        data: { lastName: parent.lastName },
+      })
+    }
+  }
+
   res.status(201).json(relationship)
 })
 

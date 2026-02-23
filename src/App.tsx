@@ -104,6 +104,11 @@ function App() {
     [people, query],
   )
 
+  const defaultFamilyName = useMemo(
+    () => people.find((p) => p.lastName && p.lastName.trim())?.lastName?.trim() ?? '',
+    [people],
+  )
+
   const autoPositions = useMemo(() => {
     const visibleIds = new Set(filtered.map((p) => p.id))
     const levels = new Map<string, number>()
@@ -223,61 +228,76 @@ function App() {
     await load()
   }
 
-  const nodes: Node<PersonNodeData>[] = filtered.map((p) => {
-    const highlighted =
-      selectedId === p.id ||
-      relationships.some((r) =>
-        selectedId ? (r.fromPersonId === selectedId || r.toPersonId === selectedId) && (r.fromPersonId === p.id || r.toPersonId === p.id) : false,
-      )
-
-    const fallback = autoPositions.get(p.id) ?? { x: 0, y: 0 }
-
-    return {
-      id: p.id,
-      type: 'personNode',
-      data: {
-        label: `${p.firstName} ${p.lastName ?? ''}`.trim(),
-        onQuickAdd: quickAddRelative,
-        onDelete: deletePerson,
-      },
-      position: {
-        x: p.posX ?? fallback.x,
-        y: p.posY ?? fallback.y,
-      },
-      draggable: true,
-      style: {
-        border: highlighted ? '2px solid #7c3aed' : '1px solid #ddd',
-        borderRadius: 12,
-        background: highlighted ? '#f3e8ff' : '#fff',
-      },
-    }
-  })
-
-  const edges: Edge[] = relationships
-    .filter((r) => filtered.some((p) => p.id === r.fromPersonId || p.id === r.toPersonId))
-    .map((r) => {
-      const highlighted = selectedId && (r.fromPersonId === selectedId || r.toPersonId === selectedId)
-      let source = r.fromPersonId
-      let target = r.toPersonId
-      if (r.type === 'CHILD') {
-        source = r.toPersonId
-        target = r.fromPersonId
-      }
-      return {
-        id: r.id,
-        source,
-        target,
-        label: r.type,
-        animated: !!highlighted,
-        style: { stroke: highlighted ? '#7c3aed' : '#999', strokeWidth: highlighted ? 3 : 1.5 },
+  const connectedIds = useMemo(() => {
+    if (!selectedId) return new Set<string>()
+    const ids = new Set<string>([selectedId])
+    relationships.forEach((r) => {
+      if (r.fromPersonId === selectedId || r.toPersonId === selectedId) {
+        ids.add(r.fromPersonId)
+        ids.add(r.toPersonId)
       }
     })
+    return ids
+  }, [relationships, selectedId])
+
+  const nodes: Node<PersonNodeData>[] = useMemo(
+    () =>
+      filtered.map((p) => {
+        const highlighted = selectedId ? connectedIds.has(p.id) : false
+        const fallback = autoPositions.get(p.id) ?? { x: 0, y: 0 }
+
+        return {
+          id: p.id,
+          type: 'personNode',
+          data: {
+            label: `${p.firstName} ${p.lastName ?? ''}`.trim(),
+            onQuickAdd: quickAddRelative,
+            onDelete: deletePerson,
+          },
+          position: {
+            x: p.posX ?? fallback.x,
+            y: p.posY ?? fallback.y,
+          },
+          draggable: true,
+          style: {
+            border: highlighted ? '2px solid #7c3aed' : '1px solid #ddd',
+            borderRadius: 12,
+            background: highlighted ? '#f3e8ff' : '#fff',
+          },
+        }
+      }),
+    [filtered, selectedId, connectedIds, autoPositions],
+  )
+
+  const edges: Edge[] = useMemo(
+    () =>
+      relationships
+        .filter((r) => filtered.some((p) => p.id === r.fromPersonId || p.id === r.toPersonId))
+        .map((r) => {
+          const highlighted = !!selectedId && (r.fromPersonId === selectedId || r.toPersonId === selectedId)
+          let source = r.fromPersonId
+          let target = r.toPersonId
+          if (r.type === 'CHILD') {
+            source = r.toPersonId
+            target = r.fromPersonId
+          }
+          return {
+            id: r.id,
+            source,
+            target,
+            label: r.type,
+            animated: false,
+            style: { stroke: highlighted ? '#7c3aed' : '#999', strokeWidth: highlighted ? 2.5 : 1.3 },
+          }
+        }),
+    [relationships, filtered, selectedId],
+  )
 
   const submitPerson = async (e: React.FormEvent) => {
     e.preventDefault()
     await api.createPerson({
       firstName: form.firstName,
-      lastName: form.lastName || null,
+      lastName: (form.lastName || defaultFamilyName || '').trim() || null,
       birthDate: form.birthDate || null,
       deathDate: form.deathDate || null,
       gender: form.gender,
@@ -341,7 +361,7 @@ function App() {
         <h3>Add person</h3>
         <form onSubmit={submitPerson}>
           <input required placeholder="First name" value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} />
-          <input placeholder="Last name (optional)" value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} />
+          <input placeholder={defaultFamilyName ? `Last name (optional, defaults to ${defaultFamilyName})` : 'Last name (optional)'} value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} />
           <input type="date" placeholder="Birth date" value={form.birthDate} onChange={(e) => setForm({ ...form, birthDate: e.target.value })} />
           <input type="date" placeholder="Death date" value={form.deathDate} onChange={(e) => setForm({ ...form, deathDate: e.target.value })} />
           <select value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value as Gender })}>
