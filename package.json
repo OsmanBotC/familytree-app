@@ -8,7 +8,7 @@
     "dev:client": "vite",
     "dev:server": "tsx server/index.ts",
     "build": "tsc -b && vite build",
-    "start": "node dist-server/index.js",
+    "start": "node dist-server/server/index.js",
     "migrate": "prisma migrate dev --name init",
     "seed": "tsx prisma/seed.ts",
     "postbuild": "tsc -p tsconfig.server.json"
