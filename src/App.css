@@ -1,0 +1,8 @@
+.layout { display: grid; grid-template-columns: 360px 1fr; height: 100vh; font-family: Inter, system-ui, sans-serif; }
+.panel { padding: 16px; border-right: 1px solid #eee; overflow: auto; background: #fafafa; }
+.panel h2 { margin-top: 0; }
+.panel h3 { margin: 18px 0 8px; }
+.panel form { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.panel input, .panel select, .panel textarea, .panel button { padding: 10px; border-radius: 10px; border: 1px solid #ddd; }
+.panel button { background: #7c3aed; color: white; border: none; font-weight: 600; cursor: pointer; }
+.graph { background: #fff; }

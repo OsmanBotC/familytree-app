@@ -1,0 +1,52 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum RelationshipType {
+  PARENT
+  SPOUSE
+  SIBLING
+  CHILD
+}
+
+model Person {
+  id           String         @id @default(cuid())
+  firstName    String
+  lastName     String?
+  birthDate    DateTime?
+  deathDate    DateTime?
+  nationality  String
+  notes        String?
+  residencies  Residency[]
+  fromRels     Relationship[] @relation("FromPerson")
+  toRels       Relationship[] @relation("ToPerson")
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+}
+
+model Residency {
+  id        String    @id @default(cuid())
+  personId  String
+  country   String
+  fromDate  DateTime?
+  toDate    DateTime?
+  isCurrent Boolean   @default(false)
+  person    Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+}
+
+model Relationship {
+  id           String           @id @default(cuid())
+  fromPersonId String
+  toPersonId   String
+  type         RelationshipType
+  notes        String?
+  fromPerson   Person           @relation("FromPerson", fields: [fromPersonId], references: [id], onDelete: Cascade)
+  toPerson     Person           @relation("ToPerson", fields: [toPersonId], references: [id], onDelete: Cascade)
+
+  @@unique([fromPersonId, toPersonId, type])
+}
