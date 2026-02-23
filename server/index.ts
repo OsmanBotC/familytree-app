@@ -165,7 +165,7 @@ app.delete('/api/relationships/:id', async (req, res) => {
 
 const clientDist = path.resolve(__dirname, '../dist')
 app.use(express.static(clientDist))
-app.get('*', (_req, res) => {
+app.use((_req, res) => {
   res.sendFile(path.join(clientDist, 'index.html'))
 })
 
