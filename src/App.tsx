@@ -4,9 +4,13 @@ import { api, type Gender, type Person, type Relationship } from './api'
 import ReactFlow, {
   Background,
   Controls,
+  Handle,
+  Position,
+  type Connection,
   type Edge,
   type Node,
   type NodeDragHandler,
+  type NodeProps,
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 
@@ -18,6 +22,14 @@ type FormData = {
   gender: Gender
   nationality: string
   notes: string
+}
+
+type RelationType = 'PARENT' | 'SPOUSE' | 'SIBLING' | 'CHILD'
+
+type PersonNodeData = {
+  label: string
+  onQuickAdd: (id: string, relation: RelationType) => void
+  onDelete: (id: string) => void
 }
 
 const PRIORITY_NATIONALITIES = ['Lebanese', 'Syrian', 'Jordanian']
@@ -40,6 +52,26 @@ const initialForm: FormData = {
 
 const dateOrNull = (v: string | null | undefined) => (v ? String(v).slice(0, 10) : '')
 
+function PersonNode({ id, data }: NodeProps<PersonNodeData>) {
+  return (
+    <div className="person-node-wrap">
+      <button className="mini-add top" onClick={() => data.onQuickAdd(id, 'PARENT')}>+ Parent</button>
+      <div className="person-node">
+        <Handle type="target" position={Position.Top} />
+        <div className="person-name">{data.label}</div>
+        <div className="node-actions">
+          <button className="mini-add" onClick={() => data.onQuickAdd(id, 'SPOUSE')}>+ Spouse</button>
+          <button className="delete-btn" onClick={() => data.onDelete(id)}>Delete</button>
+        </div>
+        <Handle type="source" position={Position.Bottom} />
+      </div>
+      <button className="mini-add bottom" onClick={() => data.onQuickAdd(id, 'CHILD')}>+ Child</button>
+    </div>
+  )
+}
+
+const nodeTypes = { personNode: PersonNode }
+
 function App() {
   const [people, setPeople] = useState<Person[]>([])
   const [relationships, setRelationships] = useState<Relationship[]>([])
@@ -47,8 +79,10 @@ function App() {
   const [form, setForm] = useState<FormData>(initialForm)
   const [fromPersonId, setFromPersonId] = useState('')
   const [toPersonId, setToPersonId] = useState('')
-  const [relType, setRelType] = useState<'PARENT' | 'SPOUSE' | 'SIBLING' | 'CHILD'>('PARENT')
+  const [relType, setRelType] = useState<RelationType>('PARENT')
   const [query, setQuery] = useState('')
+  const [pendingConnection, setPendingConnection] = useState<{ source: string; target: string } | null>(null)
+  const [popupRelType, setPopupRelType] = useState<RelationType>('PARENT')
 
   const load = async () => {
     const [p, r] = await Promise.all([api.people(), api.relationships()])
@@ -137,14 +171,59 @@ function App() {
     levelKeys.forEach((lv) => {
       const row = (byLevel.get(lv) ?? []).sort((a, b) => `${a.firstName} ${a.lastName ?? ''}`.localeCompare(`${b.firstName} ${b.lastName ?? ''}`))
       row.forEach((p, i) => {
-        positions.set(p.id, { x: i * 260, y: lv * 180 })
+        positions.set(p.id, { x: i * 280, y: lv * 220 })
       })
     })
 
     return positions
   }, [filtered, relationships])
 
-  const nodes: Node[] = filtered.map((p) => {
+  const quickAddRelative = async (baseId: string, relation: RelationType) => {
+    const base = people.find((p) => p.id === baseId)
+    if (!base) return
+
+    const firstName = window.prompt('First name of new person?')?.trim()
+    if (!firstName) return
+    const lastName = window.prompt('Last name (optional)')?.trim() || null
+
+    const created = await api.createPerson({
+      firstName,
+      lastName,
+      nationality: base.nationality,
+      gender: 'UNKNOWN',
+      notes: null,
+    })
+
+    let from = baseId
+    let to = created.id as string
+    let type: RelationType = relation
+
+    if (relation === 'PARENT') {
+      from = created.id as string
+      to = baseId
+      type = 'PARENT'
+    } else if (relation === 'CHILD') {
+      from = baseId
+      to = created.id as string
+      type = 'PARENT'
+    } else if (relation === 'SPOUSE') {
+      from = baseId
+      to = created.id as string
+      type = 'SPOUSE'
+    }
+
+    await api.createRelationship({ fromPersonId: from, toPersonId: to, type })
+    await load()
+  }
+
+  const deletePerson = async (id: string) => {
+    if (!window.confirm('Delete this person and related links?')) return
+    await api.deletePerson(id)
+    if (selectedId === id) setSelectedId(null)
+    await load()
+  }
+
+  const nodes: Node<PersonNodeData>[] = filtered.map((p) => {
     const highlighted =
       selectedId === p.id ||
       relationships.some((r) =>
@@ -155,8 +234,11 @@ function App() {
 
     return {
       id: p.id,
+      type: 'personNode',
       data: {
         label: `${p.firstName} ${p.lastName ?? ''}`.trim(),
+        onQuickAdd: quickAddRelative,
+        onDelete: deletePerson,
       },
       position: {
         x: p.posX ?? fallback.x,
@@ -166,7 +248,6 @@ function App() {
       style: {
         border: highlighted ? '2px solid #7c3aed' : '1px solid #ddd',
         borderRadius: 12,
-        padding: 8,
         background: highlighted ? '#f3e8ff' : '#fff',
       },
     }
@@ -234,6 +315,23 @@ function App() {
     })
   }
 
+  const onConnect = (conn: Connection) => {
+    if (!conn.source || !conn.target) return
+    setPendingConnection({ source: conn.source, target: conn.target })
+    setPopupRelType('PARENT')
+  }
+
+  const confirmPopupRelationship = async () => {
+    if (!pendingConnection) return
+    await api.createRelationship({
+      fromPersonId: pendingConnection.source,
+      toPersonId: pendingConnection.target,
+      type: popupRelType,
+    })
+    setPendingConnection(null)
+    await load()
+  }
+
   return (
     <div className="layout">
       <aside className="panel">
@@ -275,7 +373,7 @@ function App() {
               <option key={p.id} value={p.id}>{`${p.firstName} ${p.lastName ?? ''}`}</option>
             ))}
           </select>
-          <select value={relType} onChange={(e) => setRelType(e.target.value as 'PARENT' | 'SPOUSE' | 'SIBLING' | 'CHILD')}>
+          <select value={relType} onChange={(e) => setRelType(e.target.value as RelationType)}>
             <option value="PARENT">PARENT</option>
             <option value="CHILD">CHILD</option>
             <option value="SPOUSE">SPOUSE</option>
@@ -290,6 +388,8 @@ function App() {
           nodes={nodes}
           edges={edges}
           fitView
+          nodeTypes={nodeTypes}
+          onConnect={onConnect}
           onNodeClick={(_, node) => setSelectedId(node.id)}
           onNodeDragStop={onNodeDragStop}
           proOptions={{ hideAttribution: true }}
@@ -298,6 +398,24 @@ function App() {
           <Controls />
         </ReactFlow>
       </main>
+
+      {pendingConnection && (
+        <div className="relation-modal-backdrop">
+          <div className="relation-modal">
+            <h4>Choose relationship</h4>
+            <select value={popupRelType} onChange={(e) => setPopupRelType(e.target.value as RelationType)}>
+              <option value="PARENT">PARENT</option>
+              <option value="CHILD">CHILD</option>
+              <option value="SPOUSE">SPOUSE</option>
+              <option value="SIBLING">SIBLING</option>
+            </select>
+            <div className="modal-actions">
+              <button onClick={() => setPendingConnection(null)}>Cancel</button>
+              <button onClick={confirmPopupRelationship}>Save</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

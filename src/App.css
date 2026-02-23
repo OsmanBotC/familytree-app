@@ -6,3 +6,19 @@
 .panel input, .panel select, .panel textarea, .panel button { padding: 10px; border-radius: 10px; border: 1px solid #ddd; }
 .panel button { background: #7c3aed; color: white; border: none; font-weight: 600; cursor: pointer; }
 .graph { background: #fff; }
+
+.person-node-wrap { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.person-node { min-width: 170px; background: #fff; border-radius: 12px; padding: 10px; text-align: center; box-shadow: 0 1px 6px rgba(0,0,0,.08); }
+.person-name { font-weight: 600; margin-bottom: 6px; }
+.node-actions { display: flex; gap: 6px; justify-content: center; }
+.mini-add, .delete-btn { border: 1px solid #ddd; border-radius: 8px; padding: 4px 8px; font-size: 12px; background: #fff; cursor: pointer; }
+.mini-add.top, .mini-add.bottom { background: #f6f0ff; border-color: #d8c7ff; }
+.delete-btn { background: #fff0f0; border-color: #ffc9c9; color: #b00020; }
+
+.relation-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.25); display: grid; place-items: center; z-index: 50; }
+.relation-modal { background: #fff; border-radius: 12px; padding: 16px; width: 300px; box-shadow: 0 8px 30px rgba(0,0,0,.2); }
+.relation-modal h4 { margin: 0 0 10px; }
+.relation-modal select { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid #ddd; }
+.modal-actions { margin-top: 12px; display: flex; justify-content: flex-end; gap: 8px; }
+.modal-actions button { padding: 8px 12px; border-radius: 8px; border: 1px solid #ddd; cursor: pointer; background: #fff; }
+.modal-actions button:last-child { background: #7c3aed; color: #fff; border: none; }

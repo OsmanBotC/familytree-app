@@ -30,6 +30,8 @@ export const api = {
     fetch('/api/people', { method: 'POST', headers, body: JSON.stringify(payload) }).then((r) => r.json()),
   updatePerson: (id: string, payload: Partial<Person>) =>
     fetch(`/api/people/${id}`, { method: 'PUT', headers, body: JSON.stringify(payload) }).then((r) => r.json()),
+  deletePerson: (id: string) =>
+    fetch(`/api/people/${id}`, { method: 'DELETE' }),
   createRelationship: (payload: Omit<Relationship, 'id'>) =>
     fetch('/api/relationships', { method: 'POST', headers, body: JSON.stringify(payload) }).then((r) => r.json()),
 }
