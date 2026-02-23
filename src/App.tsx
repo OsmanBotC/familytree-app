@@ -90,6 +90,9 @@ function App() {
   const [toPersonId, setToPersonId] = useState('')
   const [relType, setRelType] = useState<RelationType>('PARENT')
   const [query, setQuery] = useState('')
+  const [bulkText, setBulkText] = useState(
+    'ref\tfirstName\tlastName\tgender\tnationality\tbirthDate\tdeathDate\tnotes\tfatherRef\tmotherRef\tspouseRefs\tsiblingRefs\n',
+  )
   const [pendingConnection, setPendingConnection] = useState<{ source: string; target: string } | null>(null)
   const [popupRelType, setPopupRelType] = useState<RelationType>('PARENT')
 
@@ -391,6 +394,96 @@ function App() {
     await load()
   }
 
+  const importTable = async () => {
+    const lines = bulkText
+      .split('\n')
+      .map((l) => l.trimEnd())
+      .filter((l) => l.trim())
+
+    if (lines.length < 2) {
+      window.alert('Paste at least one data row under the header.')
+      return
+    }
+
+    const header = lines[0].split('\t').map((h) => h.trim())
+    const col = (name: string) => header.indexOf(name)
+
+    const rows = lines.slice(1).map((line) => line.split('\t'))
+    const refToId = new Map<string, string>()
+
+    for (const cells of rows) {
+      const get = (name: string) => {
+        const i = col(name)
+        return i >= 0 ? (cells[i] ?? '').trim() : ''
+      }
+
+      const firstName = get('firstName')
+      if (!firstName) continue
+
+      const created = await api.createPerson({
+        firstName,
+        lastName: get('lastName') || null,
+        gender: (get('gender') || 'UNKNOWN') as Gender,
+        nationality: get('nationality') || PRIORITY_NATIONALITIES[0],
+        birthDate: get('birthDate') || null,
+        deathDate: get('deathDate') || null,
+        notes: get('notes') || null,
+      })
+
+      const ref = get('ref')
+      if (ref) refToId.set(ref, created.id)
+    }
+
+    const createdLinks = new Set<string>()
+    const safeCreateLink = async (fromId: string, toId: string, type: RelationType) => {
+      const key = `${fromId}->${toId}:${type}`
+      if (createdLinks.has(key)) return
+      createdLinks.add(key)
+      try {
+        await api.createRelationship({ fromPersonId: fromId, toPersonId: toId, type })
+      } catch {
+        // ignore duplicate/invalid links
+      }
+    }
+
+    for (const cells of rows) {
+      const get = (name: string) => {
+        const i = col(name)
+        return i >= 0 ? (cells[i] ?? '').trim() : ''
+      }
+
+      const selfRef = get('ref')
+      const selfId = selfRef ? refToId.get(selfRef) : undefined
+      if (!selfId) continue
+
+      const fatherId = refToId.get(get('fatherRef'))
+      const motherId = refToId.get(get('motherRef'))
+      if (fatherId) await safeCreateLink(fatherId, selfId, 'PARENT')
+      if (motherId) await safeCreateLink(motherId, selfId, 'PARENT')
+
+      const spouseRefs = get('spouseRefs')
+        .split(',')
+        .map((x) => x.trim())
+        .filter(Boolean)
+      for (const sRef of spouseRefs) {
+        const sid = refToId.get(sRef)
+        if (sid) await safeCreateLink(selfId, sid, 'SPOUSE')
+      }
+
+      const siblingRefs = get('siblingRefs')
+        .split(',')
+        .map((x) => x.trim())
+        .filter(Boolean)
+      for (const sRef of siblingRefs) {
+        const sid = refToId.get(sRef)
+        if (sid) await safeCreateLink(selfId, sid, 'SIBLING')
+      }
+    }
+
+    await load()
+    window.alert('Table import done.')
+  }
+
   return (
     <div className="layout">
       <aside className="panel">
@@ -417,6 +510,18 @@ function App() {
           <textarea placeholder="Notes" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
           <button type="submit">Add person</button>
         </form>
+
+        <h3>Bulk table import (TSV)</h3>
+        <p style={{ marginTop: 0, fontSize: 12, opacity: 0.8 }}>
+          Paste from Excel/Sheets using tab-separated columns. Use <code>ref</code> to link family members.
+        </p>
+        <textarea
+          rows={7}
+          value={bulkText}
+          onChange={(e) => setBulkText(e.target.value)}
+          placeholder="ref\tfirstName\tlastName\t..."
+        />
+        <button type="button" onClick={importTable}>Import table</button>
 
         <h3>Add relationship</h3>
         <form onSubmit={submitRelationship}>
