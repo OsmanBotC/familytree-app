@@ -57,14 +57,22 @@ function PersonNode({ id, data }: NodeProps<PersonNodeData>) {
     <div className="person-node-wrap">
       <button className="mini-add top" onClick={() => data.onQuickAdd(id, 'PARENT')}>+ Parent</button>
       <div className="person-node">
-        <Handle type="target" position={Position.Top} />
+        <Handle className="connect-handle" type="target" position={Position.Top} id="t" />
+        <Handle className="connect-handle" type="target" position={Position.Left} id="l" />
+        <Handle className="connect-handle" type="target" position={Position.Right} id="r" />
+        <Handle className="connect-handle" type="target" position={Position.Bottom} id="b" />
+
+        <Handle className="connect-handle" type="source" position={Position.Top} id="st" />
+        <Handle className="connect-handle" type="source" position={Position.Left} id="sl" />
+        <Handle className="connect-handle" type="source" position={Position.Right} id="sr" />
+        <Handle className="connect-handle" type="source" position={Position.Bottom} id="sb" />
+
         <div className="person-name">{data.label}</div>
         <div className="node-actions">
           <button className="mini-add" onClick={() => data.onQuickAdd(id, 'SPOUSE')}>+ Spouse</button>
           <button className="mini-add" onClick={() => data.onQuickAdd(id, 'SIBLING')}>+ Sibling</button>
           <button className="delete-btn" onClick={() => data.onDelete(id)}>Delete</button>
         </div>
-        <Handle type="source" position={Position.Bottom} />
       </div>
       <button className="mini-add bottom" onClick={() => data.onQuickAdd(id, 'CHILD')}>+ Child</button>
     </div>

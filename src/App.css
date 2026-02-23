@@ -8,7 +8,8 @@
 .graph { background: #fff; }
 
 .person-node-wrap { display: flex; flex-direction: column; align-items: center; gap: 6px; }
-.person-node { min-width: 170px; background: #fff; border-radius: 12px; padding: 10px; text-align: center; box-shadow: 0 1px 6px rgba(0,0,0,.08); }
+.person-node { min-width: 170px; background: #fff; border-radius: 12px; padding: 10px; text-align: center; box-shadow: 0 1px 6px rgba(0,0,0,.08); position: relative; }
+.connect-handle { width: 12px !important; height: 12px !important; background: #7c3aed !important; border: 2px solid #fff !important; box-shadow: 0 0 0 1px #7c3aed; }
 .person-name { font-weight: 600; margin-bottom: 6px; }
 .node-actions { display: flex; gap: 6px; justify-content: center; }
 .mini-add, .delete-btn { border: 1px solid #ddd; border-radius: 8px; padding: 4px 8px; font-size: 12px; background: #fff; cursor: pointer; }
