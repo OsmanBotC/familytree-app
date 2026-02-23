@@ -17,8 +17,11 @@ const personSchema = z.object({
   lastName: z.string().optional().nullable(),
   birthDate: z.string().optional().nullable(),
   deathDate: z.string().optional().nullable(),
+  gender: z.enum(['MALE', 'FEMALE', 'OTHER', 'UNKNOWN']).optional(),
   nationality: z.string().min(1),
   notes: z.string().optional().nullable(),
+  posX: z.number().optional().nullable(),
+  posY: z.number().optional().nullable(),
 })
 
 const residencySchema = z.object({
@@ -87,8 +90,11 @@ app.post('/api/people', async (req, res) => {
       lastName: p.lastName || null,
       birthDate: parseDate(p.birthDate),
       deathDate: parseDate(p.deathDate),
+      gender: p.gender ?? 'UNKNOWN',
       nationality: p.nationality,
       notes: p.notes || null,
+      posX: p.posX ?? null,
+      posY: p.posY ?? null,
     },
   })
   res.status(201).json(person)
@@ -106,8 +112,11 @@ app.put('/api/people/:id', async (req, res) => {
       lastName: p.lastName || null,
       birthDate: parseDate(p.birthDate),
       deathDate: parseDate(p.deathDate),
+      gender: p.gender ?? 'UNKNOWN',
       nationality: p.nationality,
       notes: p.notes || null,
+      posX: p.posX ?? null,
+      posY: p.posY ?? null,
     },
   })
 

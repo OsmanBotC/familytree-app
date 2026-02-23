@@ -14,14 +14,24 @@ enum RelationshipType {
   CHILD
 }
 
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  UNKNOWN
+}
+
 model Person {
   id           String         @id @default(cuid())
   firstName    String
   lastName     String?
   birthDate    DateTime?
   deathDate    DateTime?
+  gender       Gender         @default(UNKNOWN)
   nationality  String
   notes        String?
+  posX         Float?
+  posY         Float?
   residencies  Residency[]
   fromRels     Relationship[] @relation("FromPerson")
   toRels       Relationship[] @relation("ToPerson")
