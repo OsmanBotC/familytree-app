@@ -227,6 +227,36 @@ function App() {
     }
 
     await api.createRelationship({ fromPersonId: from, toPersonId: to, type })
+
+    // Smart helper: when adding a sibling, suggest inheriting known parents automatically.
+    if (relation === 'SIBLING') {
+      const parentIds = new Set<string>()
+      relationships.forEach((r) => {
+        if (r.type === 'PARENT' && r.toPersonId === baseId) parentIds.add(r.fromPersonId)
+        if (r.type === 'CHILD' && r.fromPersonId === baseId) parentIds.add(r.toPersonId)
+      })
+
+      if (parentIds.size > 0) {
+        const shouldLinkParents = window.confirm(
+          `I found ${parentIds.size} known parent(s) for ${base.firstName}. Link them automatically to ${firstName} as well?`,
+        )
+
+        if (shouldLinkParents) {
+          for (const parentId of parentIds) {
+            try {
+              await api.createRelationship({
+                fromPersonId: parentId,
+                toPersonId: created.id as string,
+                type: 'PARENT',
+              })
+            } catch {
+              // ignore duplicate or invalid edge errors
+            }
+          }
+        }
+      }
+    }
+
     await load()
   }
 
